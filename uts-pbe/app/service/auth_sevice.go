@@ -17,7 +17,7 @@ const refreshTokenBytes = 32
 type AuthService struct {
 	users      repository.UserRepository
 	tokens     repository.TokenRepository
-	students   repository.StudentRepository 
+	students   repository.StudentRepository
 	jwt        *helper.JWTManager
 	refreshTTL time.Duration
 }

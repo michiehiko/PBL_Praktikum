@@ -28,7 +28,7 @@ func Negotiate(c *fiber.Ctx, offered ...string) (string, error) {
 
 func WriteStudentsCSV(c *fiber.Ctx, students []model.Student) error {
 	c.Set(fiber.HeaderContentType, FormatCSV+"; charset=utf-8")
-    // benerin bug compiler: Tambahkan tanda kutip string pada attachment
+	// benerin bug compiler: Tambahkan tanda kutip string pada attachment
 	c.Set(fiber.HeaderContentDisposition, `attachment; filename="students.csv"`)
 
 	var buffer strings.Builder

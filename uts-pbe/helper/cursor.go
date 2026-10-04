@@ -15,7 +15,7 @@ import (
 var ErrInvalidCursor = errors.New("cursor tidak valid")
 
 func EncodeCursor(createdAt time.Time, id int) string {
-    // benerin bug : Gunakan "|" (pipe) bukan spasi agar cocok dengan DecodeCursor
+	// benerin bug : Gunakan "|" (pipe) bukan spasi agar cocok dengan DecodeCursor
 	raw := strconv.FormatInt(createdAt.UTC().UnixNano(), 10) + "|" + strconv.Itoa(id)
 	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }

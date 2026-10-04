@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrQuotaFull   = errors.New("kuota mata kuliah sudah penuh")
-	ErrSKSLimit    = errors.New("melebihi batas maksimal SKS")
+	ErrQuotaFull = errors.New("kuota mata kuliah sudah penuh")
+	ErrSKSLimit  = errors.New("melebihi batas maksimal SKS")
 )
 
 type EnrollmentRepository interface {

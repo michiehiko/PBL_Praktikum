@@ -40,7 +40,7 @@ func main() {
 		ON CONFLICT (email) DO UPDATE SET email=EXCLUDED.email 
 		RETURNING id
 	`, adminPass).Scan(&adminID)
-	
+
 	if err == nil {
 		fmt.Println("Berhasil membuat 1 akun Admin (admin@siakad.com | pass: admin123)")
 	}
@@ -50,7 +50,7 @@ func main() {
 	for i := 1; i <= 20; i++ {
 		nim := fmt.Sprintf("12345600%04d", i) // Contoh NIM 12 digit: 123456000001
 		email := fmt.Sprintf("mahasiswa%d@siakad.com", i)
-		passHash, _ := helper.HashPassword(nim) // Password = NIM 
+		passHash, _ := helper.HashPassword(nim) // Password = NIM
 
 		var userID int
 		err := pool.QueryRow(ctx, `
@@ -75,13 +75,13 @@ func main() {
 	for i := 1; i <= 10; i++ {
 		kodeMK := fmt.Sprintf("TIK%03d", i) // TIK001, TIK002, dst
 		namaMK := fmt.Sprintf("Mata Kuliah Dasar %d", i)
-		
+
 		_, err := pool.Exec(ctx, `
 			INSERT INTO courses (kode_mk, nama_mk, sks, semester, kuota) 
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (kode_mk) DO NOTHING
 		`, kodeMK, namaMK, 3, 1, 40)
-		
+
 		if err != nil {
 			log.Printf("Gagal insert MK %s: %v", kodeMK, err)
 		}

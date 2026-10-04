@@ -135,7 +135,7 @@ func (r *studentPostgresRepository) CreateWithUser(ctx context.Context, u model.
 	if err != nil {
 		return model.Student{}, err
 	}
-	defer tx.Rollback(ctx) // bakal di batalin klo gagal di tengah 
+	defer tx.Rollback(ctx) // bakal di batalin klo gagal di tengah
 
 	// Insert User
 	err = tx.QueryRow(ctx,
@@ -172,7 +172,7 @@ func (r *studentPostgresRepository) CreateWithUser(ctx context.Context, u model.
 }
 
 func (r *studentPostgresRepository) Update(ctx context.Context, s model.Student) (model.Student, error) {
-	// NIM tidak diupdate 
+	// NIM tidak diupdate
 	err := r.pool.QueryRow(ctx,
 		`UPDATE students SET nama = $1, prodi = $2, angkatan = $3, ipk_terakhir = $4 WHERE id = $5 AND deleted_at IS NULL
 		RETURNING id, user_id, nim, nama, prodi, angkatan, ipk_terakhir, created_at`,

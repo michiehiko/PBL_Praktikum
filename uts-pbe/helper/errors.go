@@ -6,16 +6,16 @@ import (
 )
 
 const (
-	CodeValidation       = "VALIDATION_ERROR"
-	CodeBadRequest       = "BAD_REQUEST"
-	CodeUnauthorized     = "UNAUTHORIZED"
-	CodeForbidden        = "FORBIDDEN"
-	CodeNotFound         = "NOT_FOUND"
-	CodeConflict         = "CONFLICT"
-	CodeUnsupportedMedia = "UNSUPPORTED_MEDIA_TYPE"
-	CodeNotAcceptable    = "NOT_ACCEPTABLE"
-	CodeTooManyRequests  = "TOO_MANY_REQUESTS"
-	CodeInternal         = "INTERNAL_ERROR"
+	CodeValidation         = "VALIDATION_ERROR"
+	CodeBadRequest         = "BAD_REQUEST"
+	CodeUnauthorized       = "UNAUTHORIZED"
+	CodeForbidden          = "FORBIDDEN"
+	CodeNotFound           = "NOT_FOUND"
+	CodeConflict           = "CONFLICT"
+	CodeUnsupportedMedia   = "UNSUPPORTED_MEDIA_TYPE"
+	CodeNotAcceptable      = "NOT_ACCEPTABLE"
+	CodeTooManyRequests    = "TOO_MANY_REQUESTS"
+	CodeInternal           = "INTERNAL_ERROR"
 	CodeServiceUnavailable = "SERVICE_UNAVAILABLE"
 )
 
@@ -57,7 +57,7 @@ func Conflict(message string) *AppError {
 }
 
 func Validation(fields map[string]string) *AppError {
-    // bug 1 : 422 bukan 400
+	// bug 1 : 422 bukan 400
 	return &AppError{
 		Status: fiber.StatusUnprocessableEntity, Code: CodeValidation,
 		Message: "validasi gagal", Fields: fields,

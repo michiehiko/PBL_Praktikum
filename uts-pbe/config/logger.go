@@ -16,7 +16,7 @@ func NewLogger() *slog.Logger {
 
 	rotator := &lumberjack.Logger{
 		Filename:   filepath.Join("logs", "app.log"),
-		MaxSize:    10, 
+		MaxSize:    10,
 		MaxBackups: 5,
 		MaxAge:     14,
 		Compress:   true,

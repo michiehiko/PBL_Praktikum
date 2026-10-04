@@ -9,7 +9,7 @@ type Course struct {
 	SKS       int       `json:"sks"`
 	Semester  int       `json:"semester"`
 	Kuota     int       `json:"kuota"`
-	Terisi    int       `json:"terisi"` // Kolom virtual dari perhitungan enrollments
+	Terisi    int       `json:"terisi"`     // Kolom virtual dari perhitungan enrollments
 	SisaKuota int       `json:"sisa_kuota"` // Kolom virtual
 	CreatedAt time.Time `json:"created_at"`
 }
