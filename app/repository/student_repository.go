@@ -11,6 +11,8 @@ import (
     "latihan-fiber/app/model" 
 )
 
+FindAfterCursor(ctx context.Context, q model.CursorQuery) ([]model.Student, error)
+
 // sentinel error 
 var (
     ErrNotFound  = errors.New("data tidak ditemukan")
@@ -185,4 +187,49 @@ func (r *studentPostgresRepository) Delete(ctx context.Context, id int) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *studentPostgresRepository) FindAfterCursor(ctx context.Context, q model.CursorQuery) ([]model.Student, error) {
+	args := []any{}
+	where := "WHERE 1=1"
+
+	if q.Search != "" {
+		where += fmt.Sprintf(" AND name ILIKE $%d", len(args)+1)
+		args = append(args, "%"+q.Search+"%")
+	}
+	if q.IsActive != nil {
+		where += fmt.Sprintf(" AND is_active = $%d", len(args)+1)
+		args = append(args, *q.IsActive)
+	}
+	if q.After != nil {
+		// Menggunakan urutan DESC (terbaru ke terlama), maka pakai <
+		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)", len(args)+1, len(args)+2)
+		args = append(args, q.After.CreatedAt, q.After.ID)
+	}
+
+	args = append(args, q.Limit+1) // Ambil 1 ekstra untuk mengecek has_more
+	query := fmt.Sprintf(
+		"SELECT id, nim, name, grade, is_active, owner_id, created_at FROM students %s ORDER BY created_at DESC, id DESC LIMIT $%d",
+		where, len(args))
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("mengambil daftar student (cursor): %w", err)
+	}
+	defer rows.Close()
+
+	hasil := []model.Student{}
+	for rows.Next() {
+		var s model.Student
+		// benerin kode sebelumnya: owner_id ditambahkan agar validasi hak akses tidak gagal
+		if err := rows.Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.OwnerID, &s.CreatedAt); err != nil {
+			return nil, fmt.Errorf("membaca baris student: %w", err)
+		}
+		hasil = append(hasil, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("membaca hasil query cursor: %w", err)
+	}
+	return hasil, nil
 }

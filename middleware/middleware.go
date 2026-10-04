@@ -1,6 +1,7 @@
 package middleware
 
 import (
+    "errors"
     "log/slog"
     "strings"
     "time"
@@ -37,21 +38,37 @@ func corsPolicy(allowedOrigins string) fiber.Handler {
 }
 
 func RequestLogger(logger *slog.Logger) fiber.Handler {
-    return func(c *fiber.Ctx) error {
-        start := time.Now()
-        err := c.Next()
+	return func(c *fiber.Ctx) error {
+		start := time.Now()
+		err := c.Next()
 
-        requestID, _ := c.Locals("requestid").(string)
-        logger.Info("http_request",
-            slog.String("request_id", requestID),
-            slog.String("method", c.Method()),
-            slog.String("path", c.Path()),
-            slog.Int("status", c.Response().StatusCode()),
-            slog.Duration("duration", time.Since(start)),
-            slog.String("ip", c.IP()),
-        )
-        return err
-    }
+		requestID, _ := c.Locals("requestid").(string)
+		
+		status := c.Response().StatusCode()
+		if err != nil {
+			var appErr *helper.AppError
+			var fiberErr *fiber.Error
+
+			if errors.As(err, &appErr) {
+				status = appErr.Status
+			} else if errors.As(err, &fiberErr) {
+                // benerin bug 4: Menangkap status code dari framework Fiber (ex: 404)
+				status = fiberErr.Code
+			} else {
+				status = fiber.StatusInternalServerError
+			}
+		}
+
+		logger.Info("http_request",
+			slog.String("request_id", requestID),
+			slog.String("method", c.Method()),
+			slog.String("path", c.Path()),
+			slog.Int("status", status),
+			slog.Duration("duration", time.Since(start)),
+			slog.String("ip", c.IP()),
+		)
+		return err
+	}
 }
 
 var methodsWithBody = map[string]bool{

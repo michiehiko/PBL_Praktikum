@@ -28,24 +28,24 @@ func (q ListQuery) Offset() int {
 }
 
 type CreateStudentRequest struct {
-	NIM      string `json:"nim"`
-	Name     string `json:"name"`
-	Grade    string `json:"grade"`
-	IsActive bool   `json:"is_active"`
+	NIM      string `json:"nim" validate:"required,nim,min=5,max=15"`
+	Name     string `json:"name" validate:"required,min=3,max=50"`
+	Grade    string `json:"grade" validate:"required,oneof=A B C D E"`
+	IsActive bool   `json:"is_active"` // Boolean tidak usah pakai required (bisa bentrok dengan nilai false)
 }
 
 type ReplaceStudentRequest struct {
-	NIM      string `json:"nim"`
-	Name     string `json:"name"`
-	Grade    string `json:"grade"`
+	NIM      string `json:"nim" validate:"required,nim,min=5,max=15"`
+	Name     string `json:"name" validate:"required,min=3,max=50"`
+	Grade    string `json:"grade" validate:"required,oneof=A B C D E"`
 	IsActive bool   `json:"is_active"`
 }
 
 type PatchStudentRequest struct {
-	NIM      *string `json:"nim"`
-	Name     *string `json:"name"`
-	Grade    *string `json:"grade"`
-	IsActive *bool   `json:"is_active"`
+	NIM      *string `json:"nim,omitempty" validate:"omitnil,nim,min=5,max=15"`
+	Name     *string `json:"name,omitempty" validate:"omitnil,min=3,max=50"`
+	Grade    *string `json:"grade,omitempty" validate:"omitnil,oneof=A B C D E"`
+	IsActive *bool   `json:"is_active,omitempty"`
 }
 
 type Meta struct {
@@ -69,4 +69,22 @@ type ErrorResponse struct {
 	Message   string            `json:"message"`
 	Fields    map[string]string `json:"fields,omitempty"`     // bug 2 dah dibenerin
 	RequestID string            `json:"request_id,omitempty"` // bug 2 dah dibenerin
+}
+
+type Cursor struct {
+	CreatedAt time.Time
+	ID        int
+}
+
+type CursorQuery struct {
+	Limit    int
+	Search   string
+	IsActive *bool
+	After    *Cursor
+}
+
+type CursorMeta struct {
+	Limit      int    `json:"limit"`
+	NextCursor string `json:"next_cursor,omitempty"`
+	HasMore    bool   `json:"has_more"`
 }
