@@ -28,29 +28,34 @@ func Negotiate(c *fiber.Ctx, offered ...string) (string, error) {
 
 func WriteStudentsCSV(c *fiber.Ctx, students []model.Student) error {
 	c.Set(fiber.HeaderContentType, FormatCSV+"; charset=utf-8")
-	// benerin bug compiler: Tambahkan tanda kutip string pada attachment
 	c.Set(fiber.HeaderContentDisposition, `attachment; filename="students.csv"`)
 
 	var buffer strings.Builder
 	writer := csv.NewWriter(&buffer)
-	header := []string{"id", "nim", "name", "grade", "is_active", "owner_id", "created_at"}
+
+	header := []string{"id", "nim", "nama", "prodi", "angkatan", "ipk_terakhir"}
 	if err := writer.Write(header); err != nil {
 		return Internal(err)
 	}
 
 	for _, s := range students {
 		row := []string{
-			strconv.Itoa(s.ID), s.NIM, s.Name, s.Grade,
-			strconv.FormatBool(s.IsActive),
-			strconv.Itoa(s.OwnerID),
-			s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+			strconv.Itoa(s.ID),
+			s.NIM,
+			s.Nama,
+			s.Prodi,
+			strconv.Itoa(s.Angkatan),
+			strconv.FormatFloat(s.IpkTerakhir, 'f', 2, 64),
 		}
 		if err := writer.Write(row); err != nil {
 			return Internal(err)
 		}
 	}
+
+	writer.Flush() // memastikan semua data masuk buffer
 	if err := writer.Error(); err != nil {
 		return Internal(err)
 	}
+
 	return c.SendString(buffer.String())
 }

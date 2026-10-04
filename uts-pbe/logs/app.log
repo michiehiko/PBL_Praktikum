@@ -1,0 +1,4 @@
+{"time":"2026-10-04T23:14:24.4386577+07:00","level":"INFO","msg":"permission dimuat","roles":[]}
+{"time":"2026-10-04T23:14:24.4407058+07:00","level":"INFO","msg":"server berjalan","port":"3000"}
+{"time":"2026-10-04T23:14:33.9346951+07:00","level":"INFO","msg":"sinyal berhenti diterima, menutup server"}
+{"time":"2026-10-04T23:14:33.9352813+07:00","level":"INFO","msg":"server berhenti dengan benar"}

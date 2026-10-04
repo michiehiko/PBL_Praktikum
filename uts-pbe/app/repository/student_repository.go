@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -91,7 +90,7 @@ func (r *studentPostgresRepository) FindAll(ctx context.Context, q model.Student
 	for rows.Next() {
 		var s model.Student
 		if err := rows.Scan(&s.ID, &s.UserID, &s.NIM, &s.Nama, &s.Prodi, &s.Angkatan, &s.IpkTerakhir, &s.CreatedAt); err != nil {
-			return nil, err
+			return nil, 0, err // <-- Tambahkan angka 0 di sini
 		}
 		hasil = append(hasil, s)
 	}

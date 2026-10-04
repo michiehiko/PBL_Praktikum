@@ -17,8 +17,8 @@ var (
 )
 
 type accessClaims struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	Email string `json:"email"` 
+	Role  string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -38,8 +38,8 @@ func (m *JWTManager) GenerateAccess(u model.User) (string, error) {
 	now := time.Now()
 
 	claims := accessClaims{
-		Username: u.Username,
-		Role:     u.Role,
+		Email: u.Email, // Sebelumnya Username: u.Username
+		Role:  u.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   strconv.Itoa(u.ID),
 			Issuer:    m.issuer,
@@ -83,8 +83,8 @@ func (m *JWTManager) Parse(tokenString string) (model.AuthUser, error) {
 	}
 
 	return model.AuthUser{
-		UserID:   userID,
-		Username: claims.Username,
-		Role:     claims.Role,
+		UserID: userID,
+		Email:  claims.Email, 
+		Role:   claims.Role,
 	}, nil
 }

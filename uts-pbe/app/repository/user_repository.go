@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgpool"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"uts-pbe/app/model"
