@@ -1,3 +1,9 @@
+## Catatan untuk Dosen Pengajar (Mengenai Riwayat Commit)
+Permisi pak, izin menginformasikan mengenai riwayat commit pada repository ini. 
+Sebelumnya saya sudah melakukan commit secara bertahap untuk setiap modul. Namun, terjadi *fatal error* di mana terdapat sistem Git yang bertumpuk (ada folder `.git` lain di dalam `modul2/api-students/`). Saat proses *troubleshooting* untuk membersihkan Git yang *error* tersebut, riwayat commit saya yang sebelumnya tidak sengaja ter-reset dan tergabung menjadi satu commit besar di branch main ini.
+
+Untuk keseluruhan kode tugas modul dan latihan sudah lengkap dan berjalan dengan baik. Mohon pengertiannya ya pak, terima kasih! 🙏
+
 # Student Management API - Praktikum Backend Lanjut
 
 Repositori ini berisi REST API untuk manajemen data Mahasiswa (Students) yang dibangun menggunakan **Go (Fiber)** dan **PostgreSQL**. Proyek ini merupakan implementasi dari Modul 3: Database & *Repository Pattern*.
