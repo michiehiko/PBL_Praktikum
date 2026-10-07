@@ -11,3 +11,5 @@ CREATE TABLE IF NOT EXISTS students (
 CREATE UNIQUE INDEX IF NOT EXISTS students_nim_key ON students (nim);
 
 CREATE INDEX IF NOT EXISTS students_name_lower_idx ON students (LOWER(name));
+
+CREATE INDEX IF NOT EXISTS students_created_at_id_desc_idx ON students (created_at DESC, id DESC);

@@ -11,8 +11,6 @@ import (
     "latihan-fiber/app/model" 
 )
 
-FindAfterCursor(ctx context.Context, q model.CursorQuery) ([]model.Student, error)
-
 // sentinel error 
 var (
     ErrNotFound  = errors.New("data tidak ditemukan")
@@ -26,6 +24,8 @@ type StudentRepository interface {
     Create(ctx context.Context, s model.Student) (model.Student, error)
     Update(ctx context.Context, s model.Student) (model.Student, error)
     Delete(ctx context.Context, id int) error
+
+	FindAfterCursor(ctx context.Context, q model.CursorQuery) ([]model.Student, error)
 }
 
 // whitelist order by untuk sorting
@@ -127,11 +127,10 @@ func (r *studentPostgresRepository) FindAll(ctx context.Context, q model.ListQue
 func (r *studentPostgresRepository) FindByID(ctx context.Context, id int) (model.Student, error) {
 	var s model.Student
 	err := r.pool.QueryRow(ctx,
-		"SELECT id, nim, name, grade, is_active, created_at FROM students WHERE id = $1", id,
-	).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt)
+		"SELECT id, nim, name, grade, is_active, owner_id, created_at FROM students WHERE id = $1", id,
+	).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.OwnerID, &s.CreatedAt) 
 
 	if err != nil {
-		// translate eror driver jd eror repository
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
 		}

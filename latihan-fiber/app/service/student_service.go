@@ -48,6 +48,7 @@ func (s *StudentService) List(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Memanggil FindAfterCursor 
 	rows, err := s.repo.FindAfterCursor(ctx, q)
 	if err != nil {
 		return helper.Internal(err)
@@ -55,7 +56,7 @@ func (s *StudentService) List(c *fiber.Ctx) error {
 
 	hasMore := len(rows) > q.Limit
 	if hasMore {
-		rows = rows[:q.Limit] // buang data ekstra yg diambil
+		rows = rows[:q.Limit] // Buang data ekstra 
 	}
 
 	if format == helper.FormatCSV {
@@ -68,6 +69,7 @@ func (s *StudentService) List(c *fiber.Ctx) error {
 		meta.NextCursor = helper.EncodeCursor(last.CreatedAt, last.ID)
 	}
 
+	// Memanggil SuccessCursor 
 	return helper.SuccessCursor(c, "daftar mahasiswa berhasil diambil", rows, meta)
 }
 
