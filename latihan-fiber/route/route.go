@@ -19,6 +19,7 @@ type Dependencies struct {
     Permissions    *helper.PermissionSet
     StudentService *service.StudentService
     AuthService    *service.AuthService
+    CourseService  *service.CourseService
 }
 
 func Register(app *fiber.App, deps Dependencies) {
@@ -47,6 +48,17 @@ func Register(app *fiber.App, deps Dependencies) {
 	students.Get("/:id", deps.StudentService.Get)
 	students.Put("/:id", deps.StudentService.Replace)
 	students.Patch("/:id", deps.StudentService.Patch)
+
+    // kelas dan KRS
+	courses := api.Group("/courses",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+
+	// "/mine" didaftarkan SEBELUM "/:id". soalnya fiber baca sesuai urutan. kalo id dulu nnti mine dianggap id
+	courses.Get("/", deps.CourseService.List)
+	courses.Get("/mine", deps.CourseService.Mine)
+	courses.Get("/:id", deps.CourseService.Get)
+    courses.Post("/:id/enroll", deps.CourseService.Enroll)
 }
 
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {

@@ -72,7 +72,7 @@ func main() {
 	// Inisialisasi role repository
 	roleRepository := repository.NewRoleRepository(pool)
 
-	// Tpemetaan role ke permission sekali saat aplikasi menyala
+	// pemetaan role ke permission sekali saat aplikasi menyala
 	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
 	if err != nil {
 		logger.Error("gagal memuat permission", slog.String("error", err.Error()))
@@ -82,12 +82,14 @@ func main() {
 	logger.Info("permission dimuat", slog.Any("roles", permissions.KnownRoles()))
 
 	// service
-	// Catatan: Jika kode Anda error di baris ini karena argumen kurang, berarti Anda sudah mengikuti Langkah 4 Modul 6 sepenuhnya.
-	// Jika demikian, ubah menjadi: service.NewAuthService(userRepository, tokenRepository, jwtManager, permissions, time.Duration...)
 	authService := service.NewAuthService(
 		userRepository, tokenRepository, jwtManager,
 		time.Duration(refreshTTLDays)*24*time.Hour,
 	)
+
+	// service untuk kelas dan KRS
+	courseRepository := repository.NewCourseRepository(pool)
+	courseService := service.NewCourseService(courseRepository)
 	
 	//Inject permissions ke StudentService
 	studentService := service.NewStudentService(studentRepository, permissions)
@@ -99,6 +101,7 @@ func main() {
 		Permissions:    permissions, // TAMBAHAN: Inject ke route
 		StudentService: studentService,
 		AuthService:    authService,
+		CourseService: courseService,
 	}
 
 	// Aplikasi Fiber
