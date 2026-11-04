@@ -68,7 +68,7 @@ func main() {
 	userRepository := repository.NewUserRepository(pool)
 	tokenRepository := repository.NewTokenRepository(pool)
 	studentRepository := repository.NewStudentRepository(pool)
-	
+
 	// Inisialisasi role repository
 	roleRepository := repository.NewRoleRepository(pool)
 
@@ -87,37 +87,41 @@ func main() {
 		time.Duration(refreshTTLDays)*24*time.Hour,
 	)
 
-	// service untuk kelas dan KRS
+	txManager := repository.NewTxManager(pool)
+
+	// Service untuk kelas dan KRS
 	courseRepository := repository.NewCourseRepository(pool)
-	courseService := service.NewCourseService(courseRepository)
-	
-	//Inject permissions ke StudentService
+	courseService := service.NewCourseService(courseRepository, txManager)
+
+	// Service untuk Tugas Akhir 
+	supervisorRepo := repository.NewSupervisorRepository(pool)
+	supervisorService := service.NewSupervisorService(supervisorRepo, txManager)
+
+	// Inject permissions ke StudentService
 	studentService := service.NewStudentService(studentRepository, permissions)
 
-	// dependency injection
+	// Dependency injection
 	deps := route.Dependencies{
-		Pool:           pool,
-		JWT:            jwtManager,
-		Permissions:    permissions, // TAMBAHAN: Inject ke route
-		StudentService: studentService,
-		AuthService:    authService,
-		CourseService: courseService,
+		Pool:              pool,
+		JWT:               jwtManager,
+		Permissions:       permissions, 
+		StudentService:    studentService,
+		AuthService:       authService,
+		CourseService:     courseService,
+		SupervisorService: supervisorService, 
 	}
 
-	// Aplikasi Fiber
+	// Fiber
 	app := config.NewApp(logger, deps, allowedOrigins)
-	//port sesuai env/default
-	port := "3000"
-	if p := os.Getenv("APP_PORT"); p != "" {
-		port = p
-	}
 
 	go func() {
-		if err := app.Listen(":" + port); err != nil {
+		port := "3000"
+		if err := app.Listen("127.0.0.1:" + port); err != nil {
 			logger.Error("server berhenti", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 	}()
+	port := ""
 	logger.Info("server berjalan", slog.String("port", port))
 
 	// shutdown

@@ -20,6 +20,7 @@ type Dependencies struct {
     StudentService *service.StudentService
     AuthService    *service.AuthService
     CourseService  *service.CourseService
+    SupervisorService *service.SupervisorService
 }
 
 func Register(app *fiber.App, deps Dependencies) {
@@ -59,6 +60,35 @@ func Register(app *fiber.App, deps Dependencies) {
 	courses.Get("/mine", deps.CourseService.Mine)
 	courses.Get("/:id", deps.CourseService.Get)
     courses.Post("/:id/enroll", deps.CourseService.Enroll)
+    courses.Delete("/:id/enroll", deps.CourseService.Drop)
+
+	courses.Patch("/:id", 
+		middleware.RequirePermission(perms, "course:manage"),
+		deps.CourseService.UpdateQuota)
+
+	enrollments := api.Group("/enrollments",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	
+	enrollments.Post("/swap", deps.CourseService.Swap)
+
+    // Fitur Tugas Akhir 
+	supervisors := api.Group("/supervisors", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+	
+	// membatasi hanya entitas admin/manager
+	supervisors.Post("/:id/assign", 
+		middleware.RequirePermission(perms, "supervision:manage"), 
+		deps.SupervisorService.Assign)
+	
+	supervisors.Patch("/:id", 
+		middleware.RequirePermission(perms, "supervision:manage"), 
+		deps.SupervisorService.UpdateQuota)
+
+	supervisions := api.Group("/supervisions", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+	
+	supervisions.Post("/switch", 
+		middleware.RequirePermission(perms, "supervision:manage"), 
+		deps.SupervisorService.Switch)
 }
 
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {

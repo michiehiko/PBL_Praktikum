@@ -10,36 +10,41 @@ import (
 	"latihan-fiber/app/model"
 )
 
-// Deklarasi error khusus untuk repository ini
+// Kumpulan error khusus untuk repository ini
 var (
-	ErrCourseFull = errors.New("kuota kelas sudah penuh")
+	ErrCourseFull       = errors.New("kuota kelas sudah penuh")
+	ErrNotEnrolled      = errors.New("tidak terdaftar di kelas ini")
+	ErrVersionConflict  = errors.New("data sudah diubah pihak lain")
+	ErrQuotaBelowFilled = errors.New("kuota lebih kecil dari jumlah peserta")
 )
 
 type CourseRepository interface {
-	// WithTx mengembalikan salinan repository yang menjalankan seluruh query-nya di dalam transaction tx.
 	WithTx(tx DBTX) CourseRepository
 
 	FindAll(ctx context.Context) ([]model.Course, error)
 	FindByID(ctx context.Context, id int) (model.Course, error)
 	FindByStudent(ctx context.Context, userID int) ([]model.Course, error)
-	
-	// Tambahan Langkah 4 (Versi Naif)
+
 	InsertEnrollment(ctx context.Context, courseID, userID int) error
-	SetEnrolledCount(ctx context.Context, courseID, count int) error
+
+	LockStudent(ctx context.Context, userID int) error
+	SumCredits(ctx context.Context, userID int) (int, error)
+	IncrementEnrolled(ctx context.Context, courseID int) (model.Course, error)
+	DecrementEnrolled(ctx context.Context, courseID int) (model.Course, error)
+	DeleteEnrollment(ctx context.Context, courseID, userID int) error
+
+	LockCourses(ctx context.Context, ids ...int) error
+	UpdateQuota(ctx context.Context, id, quota, version int) (model.Course, error)
 }
 
 const courseColumns = `id, code, name, credits, quota, enrolled_count, version, created_at`
 
 type coursePostgresRepository struct{ db DBTX }
 
-// NewCourseRepository menerima DBTX. Pada main.go yang dikirim adalah
-// pool, sehingga repository ini bekerja di luar transaction sampai
-// WithTx dipanggil.
 func NewCourseRepository(db DBTX) CourseRepository {
 	return &coursePostgresRepository{db: db}
 }
 
-// benerin bug 1: Return type diubah dari *coursePostgresRepository menjadi CourseRepository
 func (r *coursePostgresRepository) WithTx(tx DBTX) CourseRepository {
 	return &coursePostgresRepository{db: tx}
 }
@@ -94,8 +99,6 @@ func (r *coursePostgresRepository) FindByStudent(ctx context.Context, userID int
 		ORDER BY c.code`, userID))
 }
 
-
-// implementasi langkah 4 (naif) buat uji beban
 func (r *coursePostgresRepository) InsertEnrollment(ctx context.Context, courseID, userID int) error {
 	_, err := r.db.Exec(ctx,
 		"INSERT INTO enrollments (course_id, user_id) VALUES ($1, $2)", courseID, userID)
@@ -108,12 +111,115 @@ func (r *coursePostgresRepository) InsertEnrollment(ctx context.Context, courseI
 	return nil
 }
 
-// SetEnrolledCount VERSI NAIF. Nilai baru dihitung di Go, lalu dituliskan menimpa nilai lama.
-func (r *coursePostgresRepository) SetEnrolledCount(ctx context.Context, courseID, count int) error {
-	_, err := r.db.Exec(ctx,
-		"UPDATE courses SET enrolled_count = $1 WHERE id = $2", count, courseID)
+func (r *coursePostgresRepository) LockStudent(ctx context.Context, userID int) error {
+	var id int
+	err := r.db.QueryRow(ctx,
+		"SELECT id FROM users WHERE id = $1 FOR UPDATE", userID).Scan(&id)
 	if err != nil {
-		return fmt.Errorf("menyimpan jumlah peserta: %w", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("mengunci data mahasiswa: %w", err)
 	}
 	return nil
+}
+
+func (r *coursePostgresRepository) SumCredits(ctx context.Context, userID int) (int, error) {
+	var total int
+	err := r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(c.credits), 0)
+		FROM enrollments e
+		JOIN courses c ON c.id = e.course_id
+		WHERE e.user_id = $1`, userID).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("menghitung SKS: %w", err)
+	}
+	return total, nil
+}
+
+func (r *coursePostgresRepository) IncrementEnrolled(ctx context.Context, courseID int) (model.Course, error) {
+	c, err := scanCourse(r.db.QueryRow(ctx, `
+		UPDATE courses SET enrolled_count = enrolled_count + 1
+		WHERE id = $1 AND enrolled_count < quota
+		RETURNING `+courseColumns, courseID))
+	if err == nil {
+		return c, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return model.Course{}, fmt.Errorf("menambah peserta: %w", err)
+	}
+	if _, findErr := r.FindByID(ctx, courseID); findErr != nil {
+		return model.Course{}, findErr
+	}
+	return model.Course{}, ErrCourseFull
+}
+
+func (r *coursePostgresRepository) DecrementEnrolled(ctx context.Context, courseID int) (model.Course, error) {
+	c, err := scanCourse(r.db.QueryRow(ctx, `
+		UPDATE courses SET enrolled_count = enrolled_count - 1
+		WHERE id = $1
+		RETURNING `+courseColumns, courseID))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.Course{}, ErrNotFound
+		}
+		return model.Course{}, fmt.Errorf("mengurangi peserta: %w", err)
+	}
+	return c, nil
+}
+
+func (r *coursePostgresRepository) DeleteEnrollment(ctx context.Context, courseID, userID int) error {
+	tag, err := r.db.Exec(ctx,
+		"DELETE FROM enrollments WHERE course_id = $1 AND user_id = $2", courseID, userID)
+	if err != nil {
+		return fmt.Errorf("menghapus pendaftaran: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotEnrolled
+	}
+	return nil
+}
+
+func (r *coursePostgresRepository) LockCourses(ctx context.Context, ids ...int) error {
+	rows, err := r.db.Query(ctx,
+		"SELECT id FROM courses WHERE id = ANY($1) ORDER BY id FOR UPDATE", ids)
+	if err != nil {
+		return fmt.Errorf("mengunci kelas: %w", err)
+	}
+	defer rows.Close()
+
+	found := 0
+	for rows.Next() {
+		found++
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("mengunci kelas: %w", err)
+	}
+	if found != len(ids) {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *coursePostgresRepository) UpdateQuota(ctx context.Context, id, quota, version int) (model.Course, error) {
+	c, err := scanCourse(r.db.QueryRow(ctx, `
+		UPDATE courses SET quota = $1, version = version + 1
+		WHERE id = $2 AND version = $3 AND $1 >= enrolled_count
+		RETURNING `+courseColumns, quota, id, version))
+	
+	if err == nil {
+		return c, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return model.Course{}, fmt.Errorf("mengubah kuota: %w", err)
+	}
+
+	current, findErr := r.FindByID(ctx, id)
+	if findErr != nil {
+		return model.Course{}, findErr
+	}
+	if current.Version != version {
+		return model.Course{}, ErrVersionConflict
+	}
+	return model.Course{}, ErrQuotaBelowFilled
 }
