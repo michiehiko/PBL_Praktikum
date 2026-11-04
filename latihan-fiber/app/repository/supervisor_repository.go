@@ -71,7 +71,6 @@ func (r *supervisorPostgresRepo) GetSupervisorByStudent(ctx context.Context, stu
 // Lock Student (Pessimistic Lock) mencegah penetapan serentak untuk mhs yang sama
 func (r *supervisorPostgresRepo) LockStudent(ctx context.Context, studentID int) error {
 	var id int
-	// UBAH 'students' MENJADI 'users' DI SINI:
 	err := r.db.QueryRow(ctx, "SELECT id FROM users WHERE id = $1 FOR UPDATE", studentID).Scan(&id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
