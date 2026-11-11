@@ -22,12 +22,10 @@ func newValidator() *validator.Validate {
 		return name
 	})
 
-	// benerin bug 8: menambah ! (negasi) agar valid jika ga ada spasi
 	_ = v.RegisterValidation("nospace", func(fl validator.FieldLevel) bool {
 		return !strings.ContainsAny(fl.Field().String(), " \t\n\r")
 	})
 
-	// tugas d.2 (Custom Domain Validation): Validasi NIM khusus angka dan panjang tertentu
 	_ = v.RegisterValidation("nim", func(fl validator.FieldLevel) bool {
 		val := fl.Field().String()
 		for _, r := range val {
@@ -71,13 +69,19 @@ func messageFor(fe validator.FieldError) string {
 	case "required":
 		return "wajib diisi"
 	case "min":
-		if fe.Kind() == reflect.String {
+		switch fe.Kind() {
+		case reflect.String:
 			return "minimal " + fe.Param() + " karakter"
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return "minimal " + fe.Param() + " item"
 		}
 		return "nilai minimal " + fe.Param()
 	case "max":
-		if fe.Kind() == reflect.String {
+		switch fe.Kind() {
+		case reflect.String:
 			return "maksimal " + fe.Param() + " karakter"
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return "maksimal " + fe.Param() + " item"
 		}
 		return "nilai maksimal " + fe.Param()
 	case "alphanum":

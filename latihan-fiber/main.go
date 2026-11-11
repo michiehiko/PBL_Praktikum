@@ -25,7 +25,6 @@ func main() {
 	_ = godotenv.Load()
 	logger := config.NewLogger()
 
-	// memeriksa jwt secret sblm server nyala
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if len(jwtSecret) < minSecretLength {
 		logger.Error("JWT_SECRET tidak diisi atau terlalu pendek", slog.Int("minimal_karakter", minSecretLength))
@@ -34,45 +33,45 @@ func main() {
 
 	pool, err := database.NewPool(context.Background())
 	if err != nil {
-		logger.Error("gagal terhubung ke database", slog.String("error", err.Error()))
+		logger.Error("gagal terhubung ke PostgreSQL", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	defer pool.Close()
 
-	// mengambil var env buat jwt
+	// Inisialisasi MongoDB
+	mongoClient, err := database.NewMongoClient(context.Background())
+	if err != nil {
+		logger.Error("gagal terhubung ke MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = mongoClient.Disconnect(ctx)
+	}()
+	mongoDB := mongoClient.Database(config.GetEnv("MONGO_DATABASE", "praktikum_backend"))
+
 	jwtIssuer := os.Getenv("JWT_ISSUER")
 	if jwtIssuer == "" {
 		jwtIssuer = "praktikum-backend"
 	}
-
 	accessTTLMin, _ := strconv.Atoi(os.Getenv("JWT_ACCESS_TTL_MINUTES"))
 	if accessTTLMin == 0 {
 		accessTTLMin = 15
 	}
-
 	refreshTTLDays, _ := strconv.Atoi(os.Getenv("JWT_REFRESH_TTL_DAYS"))
 	if refreshTTLDays == 0 {
 		refreshTTLDays = 7
 	}
-
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 
-	// jwt manager
-	jwtManager := helper.NewJWTManager(
-		jwtSecret,
-		jwtIssuer,
-		time.Duration(accessTTLMin)*time.Minute,
-	)
+	jwtManager := helper.NewJWTManager(jwtSecret, jwtIssuer, time.Duration(accessTTLMin)*time.Minute)
 
-	// repository
 	userRepository := repository.NewUserRepository(pool)
 	tokenRepository := repository.NewTokenRepository(pool)
 	studentRepository := repository.NewStudentRepository(pool)
-
-	// Inisialisasi role repository
 	roleRepository := repository.NewRoleRepository(pool)
 
-	// pemetaan role ke permission sekali saat aplikasi menyala
 	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
 	if err != nil {
 		logger.Error("gagal memuat permission", slog.String("error", err.Error()))
@@ -81,37 +80,48 @@ func main() {
 	permissions := helper.NewPermissionSet(rawPermissions)
 	logger.Info("permission dimuat", slog.Any("roles", permissions.KnownRoles()))
 
-	// service
 	authService := service.NewAuthService(
 		userRepository, tokenRepository, jwtManager,
 		time.Duration(refreshTTLDays)*24*time.Hour,
 	)
 
 	txManager := repository.NewTxManager(pool)
-
-	// Service untuk kelas dan KRS
 	courseRepository := repository.NewCourseRepository(pool)
 	courseService := service.NewCourseService(courseRepository, txManager)
-
-	// Service untuk Tugas Akhir 
 	supervisorRepo := repository.NewSupervisorRepository(pool)
 	supervisorService := service.NewSupervisorService(supervisorRepo, txManager)
-
-	// Inject permissions ke StudentService
 	studentService := service.NewStudentService(studentRepository, permissions)
 
-	// Dependency injection
+	// Inisialisasi Repository MongoDB
+	reviewRepository := repository.NewReviewRepository(mongoDB)
+	if err := reviewRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("gagal membuat index MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	portfolioRepository := repository.NewPortfolioRepository(mongoDB)
+	if err := portfolioRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("gagal membuat index Portfolio", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	// Inisialisasi Service MongoDB
+	reviewService := service.NewReviewService(reviewRepository, courseRepository, permissions)
+	portfolioService := service.NewPortfolioService(portfolioRepository, studentRepository)
+
 	deps := route.Dependencies{
 		Pool:              pool,
+		Mongo:             mongoClient,
 		JWT:               jwtManager,
-		Permissions:       permissions, 
+		Permissions:       permissions,
 		StudentService:    studentService,
 		AuthService:       authService,
 		CourseService:     courseService,
-		SupervisorService: supervisorService, 
+		SupervisorService: supervisorService,
+		ReviewService:     reviewService,
+		PortfolioService:  portfolioService,
 	}
 
-	// Fiber
 	app := config.NewApp(logger, deps, allowedOrigins)
 
 	go func() {
@@ -121,10 +131,8 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-	port := ""
-	logger.Info("server berjalan", slog.String("port", port))
+	logger.Info("server berjalan", slog.String("port", "3000"))
 
-	// shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

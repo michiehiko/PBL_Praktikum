@@ -10,7 +10,6 @@ import (
 	"latihan-fiber/app/model"
 )
 
-// Kumpulan error khusus untuk repository ini
 var (
 	ErrCourseFull       = errors.New("kuota kelas sudah penuh")
 	ErrNotEnrolled      = errors.New("tidak terdaftar di kelas ini")
@@ -35,6 +34,7 @@ type CourseRepository interface {
 
 	LockCourses(ctx context.Context, ids ...int) error
 	UpdateQuota(ctx context.Context, id, quota, version int) (model.Course, error)
+	IsEnrolled(ctx context.Context, courseID, userID int) (bool, error)
 }
 
 const courseColumns = `id, code, name, credits, quota, enrolled_count, version, created_at`
@@ -74,13 +74,11 @@ func (r *coursePostgresRepository) collect(rows pgx.Rows, err error) ([]model.Co
 }
 
 func (r *coursePostgresRepository) FindAll(ctx context.Context) ([]model.Course, error) {
-	return r.collect(r.db.Query(ctx,
-		"SELECT "+courseColumns+" FROM courses ORDER BY code"))
+	return r.collect(r.db.Query(ctx, "SELECT "+courseColumns+" FROM courses ORDER BY code"))
 }
 
 func (r *coursePostgresRepository) FindByID(ctx context.Context, id int) (model.Course, error) {
-	c, err := scanCourse(r.db.QueryRow(ctx,
-		"SELECT "+courseColumns+" FROM courses WHERE id = $1", id))
+	c, err := scanCourse(r.db.QueryRow(ctx, "SELECT "+courseColumns+" FROM courses WHERE id = $1", id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Course{}, ErrNotFound
@@ -100,8 +98,7 @@ func (r *coursePostgresRepository) FindByStudent(ctx context.Context, userID int
 }
 
 func (r *coursePostgresRepository) InsertEnrollment(ctx context.Context, courseID, userID int) error {
-	_, err := r.db.Exec(ctx,
-		"INSERT INTO enrollments (course_id, user_id) VALUES ($1, $2)", courseID, userID)
+	_, err := r.db.Exec(ctx, "INSERT INTO enrollments (course_id, user_id) VALUES ($1, $2)", courseID, userID)
 	if err != nil {
 		if pgErrorCode(err) == codeUniqueViolation {
 			return ErrDuplicate
@@ -113,8 +110,7 @@ func (r *coursePostgresRepository) InsertEnrollment(ctx context.Context, courseI
 
 func (r *coursePostgresRepository) LockStudent(ctx context.Context, userID int) error {
 	var id int
-	err := r.db.QueryRow(ctx,
-		"SELECT id FROM users WHERE id = $1 FOR UPDATE", userID).Scan(&id)
+	err := r.db.QueryRow(ctx, "SELECT id FROM users WHERE id = $1 FOR UPDATE", userID).Scan(&id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
@@ -169,8 +165,7 @@ func (r *coursePostgresRepository) DecrementEnrolled(ctx context.Context, course
 }
 
 func (r *coursePostgresRepository) DeleteEnrollment(ctx context.Context, courseID, userID int) error {
-	tag, err := r.db.Exec(ctx,
-		"DELETE FROM enrollments WHERE course_id = $1 AND user_id = $2", courseID, userID)
+	tag, err := r.db.Exec(ctx, "DELETE FROM enrollments WHERE course_id = $1 AND user_id = $2", courseID, userID)
 	if err != nil {
 		return fmt.Errorf("menghapus pendaftaran: %w", err)
 	}
@@ -181,8 +176,7 @@ func (r *coursePostgresRepository) DeleteEnrollment(ctx context.Context, courseI
 }
 
 func (r *coursePostgresRepository) LockCourses(ctx context.Context, ids ...int) error {
-	rows, err := r.db.Query(ctx,
-		"SELECT id FROM courses WHERE id = ANY($1) ORDER BY id FOR UPDATE", ids)
+	rows, err := r.db.Query(ctx, "SELECT id FROM courses WHERE id = ANY($1) ORDER BY id FOR UPDATE", ids)
 	if err != nil {
 		return fmt.Errorf("mengunci kelas: %w", err)
 	}
@@ -222,4 +216,15 @@ func (r *coursePostgresRepository) UpdateQuota(ctx context.Context, id, quota, v
 		return model.Course{}, ErrVersionConflict
 	}
 	return model.Course{}, ErrQuotaBelowFilled
+}
+
+func (r *coursePostgresRepository) IsEnrolled(ctx context.Context, courseID, userID int) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx,
+		"SELECT EXISTS (SELECT 1 FROM enrollments WHERE course_id = $1 AND user_id = $2)",
+		courseID, userID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("memeriksa pendaftaran: %w", err)
+	}
+	return exists, nil
 }
