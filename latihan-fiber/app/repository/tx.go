@@ -44,15 +44,17 @@ func (m *TxManager) WithTx(ctx context.Context, fn func(tx DBTX) error) error {
 	return err
 }
 
+func (m *TxManager) WithTxOnce(ctx context.Context, fn func(tx DBTX) error) error {
+	return m.runOnce(ctx, fn)
+}
+
 func (m *TxManager) runOnce(ctx context.Context, fn func(tx DBTX) error) error {
 	tx, err := m.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("memulai transaction: %w", err)
 	}
 
-	// benerin bug 4: Menambahkan defer tx.Rollback yang "hilang" di modul.
-	// Rollback selalu dijadwalkan. Setelah Commit berhasil, Rollback tidak melakukan apa-apa (pgx mengembalikan ErrTxClosed yang kita abaikan).
-	// klo gada ini, setiap kegagalan meninggalkan transaction terbuka yang terus memegang satu koneksi dari pool selamanya.
+	
 	defer tx.Rollback(ctx)
 
 	if err := fn(tx); err != nil {

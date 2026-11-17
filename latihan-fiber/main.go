@@ -9,6 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"latihan-fiber/app/repository"
@@ -25,30 +28,43 @@ func main() {
 	_ = godotenv.Load()
 	logger := config.NewLogger()
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if len(jwtSecret) < minSecretLength {
-		logger.Error("JWT_SECRET tidak diisi atau terlalu pendek", slog.Int("minimal_karakter", minSecretLength))
-		os.Exit(1)
-	}
-
 	pool, err := database.NewPool(context.Background())
 	if err != nil {
-		logger.Error("gagal terhubung ke PostgreSQL", slog.String("error", err.Error()))
+		logger.Error("gagal terhubung ke database", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	defer pool.Close()
 
-	// Inisialisasi MongoDB
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	app := startAPI(logger, pool)
+	if app == nil {
+		os.Exit(1)
+	}
+
+	logger.Info("aplikasi berjalan", slog.String("role", "api"))
+	<-ctx.Done()
+
+	if err := app.ShutdownWithTimeout(10 * time.Second); err != nil {
+		logger.Error("shutdown HTTP tidak rapi", slog.String("error", err.Error()))
+	}
+	logger.Info("aplikasi berhenti dengan rapi")
+}
+
+func startAPI(logger *slog.Logger, pool *pgxpool.Pool) *fiber.App {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if len(jwtSecret) < minSecretLength {
+		logger.Error("JWT_SECRET tidak diisi atau terlalu pendek",
+			slog.Int("minimal_karakter", minSecretLength))
+		return nil
+	}
+
 	mongoClient, err := database.NewMongoClient(context.Background())
 	if err != nil {
 		logger.Error("gagal terhubung ke MongoDB", slog.String("error", err.Error()))
-		os.Exit(1)
+		return nil
 	}
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = mongoClient.Disconnect(ctx)
-	}()
 	mongoDB := mongoClient.Database(config.GetEnv("MONGO_DATABASE", "praktikum_backend"))
 
 	jwtIssuer := os.Getenv("JWT_ISSUER")
@@ -71,78 +87,74 @@ func main() {
 	tokenRepository := repository.NewTokenRepository(pool)
 	studentRepository := repository.NewStudentRepository(pool)
 	roleRepository := repository.NewRoleRepository(pool)
-
-	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
-	if err != nil {
-		logger.Error("gagal memuat permission", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
-	permissions := helper.NewPermissionSet(rawPermissions)
-	logger.Info("permission dimuat", slog.Any("roles", permissions.KnownRoles()))
-
-	authService := service.NewAuthService(
-		userRepository, tokenRepository, jwtManager,
-		time.Duration(refreshTTLDays)*24*time.Hour,
-	)
-
-	txManager := repository.NewTxManager(pool)
+	outboxRepository := repository.NewOutboxRepository(pool)
+	notificationRepository := repository.NewNotificationRepository(pool)
 	courseRepository := repository.NewCourseRepository(pool)
-	courseService := service.NewCourseService(courseRepository, txManager)
+	txManager := repository.NewTxManager(pool)
 	supervisorRepo := repository.NewSupervisorRepository(pool)
-	supervisorService := service.NewSupervisorService(supervisorRepo, txManager)
-	studentService := service.NewStudentService(studentRepository, permissions)
 
-	// Inisialisasi Repository MongoDB
 	reviewRepository := repository.NewReviewRepository(mongoDB)
 	if err := reviewRepository.EnsureIndexes(context.Background()); err != nil {
 		logger.Error("gagal membuat index MongoDB", slog.String("error", err.Error()))
-		os.Exit(1)
+		return nil
 	}
 
 	portfolioRepository := repository.NewPortfolioRepository(mongoDB)
 	if err := portfolioRepository.EnsureIndexes(context.Background()); err != nil {
 		logger.Error("gagal membuat index Portfolio", slog.String("error", err.Error()))
-		os.Exit(1)
+		return nil
 	}
 
-	// Inisialisasi Service MongoDB
+	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
+	if err != nil {
+		logger.Error("gagal memuat permission", slog.String("error", err.Error()))
+		return nil
+	}
+	permissions := helper.NewPermissionSet(rawPermissions)
+
+	authService := service.NewAuthService(
+		userRepository, tokenRepository, jwtManager,
+		time.Duration(refreshTTLDays)*24*time.Hour,
+	)
+	courseService := service.NewCourseService(courseRepository, outboxRepository, txManager)
+	studentService := service.NewStudentService(studentRepository, permissions)
+	supervisorService := service.NewSupervisorService(supervisorRepo, txManager)
 	reviewService := service.NewReviewService(reviewRepository, courseRepository, permissions)
 	portfolioService := service.NewPortfolioService(portfolioRepository, studentRepository)
 
+	inspector := asynq.NewInspector(config.RedisOpt())
+	notificationService := service.NewNotificationService(notificationRepository, outboxRepository, inspector)
+
 	deps := route.Dependencies{
-		Pool:              pool,
-		Mongo:             mongoClient,
-		JWT:               jwtManager,
-		Permissions:       permissions,
-		StudentService:    studentService,
-		AuthService:       authService,
-		CourseService:     courseService,
-		SupervisorService: supervisorService,
-		ReviewService:     reviewService,
-		PortfolioService:  portfolioService,
+		Pool:                pool,
+		Mongo:               mongoClient,
+		JWT:                 jwtManager,
+		Permissions:         permissions,
+		StudentService:      studentService,
+		AuthService:         authService,
+		CourseService:       courseService,
+		SupervisorService:   supervisorService,
+		ReviewService:       reviewService,
+		PortfolioService:    portfolioService,
+		NotificationService: notificationService,
 	}
 
 	app := config.NewApp(logger, deps, allowedOrigins)
 
+	app.Hooks().OnShutdown(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = inspector.Close()
+		return mongoClient.Disconnect(ctx)
+	})
+
+	port := config.GetEnv("APP_PORT", "3000")
 	go func() {
-		port := "3000"
-		if err := app.Listen("127.0.0.1:" + port); err != nil {
+		if err := app.Listen(":" + port); err != nil {
 			logger.Error("server berhenti", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 	}()
-	logger.Info("server berjalan", slog.String("port", "3000"))
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.Info("sinyal berhenti diterima, menutup server")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := app.ShutdownWithContext(ctx); err != nil {
-		logger.Error("gagal menutup server dengan benar", slog.String("error", err.Error()))
-	}
-	logger.Info("server berhenti dengan benar")
+	logger.Info("HTTP berjalan", slog.String("port", port))
+	return app
 }

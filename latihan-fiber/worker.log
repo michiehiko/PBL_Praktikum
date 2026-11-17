@@ -1,0 +1,9 @@
+{"time":"2026-11-14T23:02:41.286147062+07:00","level":"INFO","msg":"worker berjalan"}
+{"time":"2026-11-14T23:02:41.292478434+07:00","level":"INFO","msg":"aplikasi berjalan","role":"worker"}
+{"time":"2026-11-14T23:02:41.323242249+07:00","level":"INFO","msg":"relay_done","published":1}
+{"time":"2026-11-14T23:02:42.871248492+07:00","level":"INFO","msg":"notification_processed","outbox_id":24,"event":"enrollment.created","retry":0,"already_sent":false}
+{"time":"2026-11-14T23:02:42.873852987+07:00","level":"INFO","msg":"notification_processed","outbox_id":24,"event":"enrollment.created","retry":0,"already_sent":true}
+{"time":"2026-11-14T23:02:42.873870893+07:00","level":"INFO","msg":"notification_processed","outbox_id":24,"event":"enrollment.created","retry":0,"already_sent":true}
+{"time":"2026-11-14T23:02:42.873938886+07:00","level":"INFO","msg":"notification_processed","outbox_id":24,"event":"enrollment.created","retry":0,"already_sent":true}
+{"time":"2026-11-14T23:02:42.876335281+07:00","level":"INFO","msg":"notification_processed","outbox_id":24,"event":"enrollment.created","retry":0,"already_sent":true}
+{"time":"2026-11-14T23:02:42.894627134+07:00","level":"INFO","msg":"notification_processed","outbox_id":24,"event":"enrollment.created","retry":0,"already_sent":true}

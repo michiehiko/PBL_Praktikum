@@ -15,7 +15,7 @@ import (
 // NewMongoClient menyiapkan client MongoDB
 func NewMongoClient(ctx context.Context) (*mongo.Client, error) {
 	opts := options.Client().
-		ApplyURI(config.GetEnv("MONGO_URI", "mongodb://localhost:27017")).
+		ApplyURI(config.GetEnv("MONGO_URI", "mongodb://127.0.0.1:27017")).
 		SetServerSelectionTimeout(5 * time.Second).
 		SetMaxPoolSize(uint64(config.GetEnvInt("MONGO_MAX_POOL", 20)))
 
