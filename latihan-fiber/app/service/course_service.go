@@ -27,6 +27,15 @@ func NewCourseService(
 	return &CourseService{courses: courses, outbox: outbox, tx: tx}
 }
 
+// List godoc
+//
+// @Summary   Daftar seluruh kelas
+// @Tags      courses
+// @Produce   json
+// @Success   200  {object}  model.WebResponse{data=[]model.Course}
+// @Failure   401  {object}  model.ErrorResponse
+// @Security  BearerAuth
+// @Router    /courses [get]
 func (s *CourseService) List(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -38,6 +47,16 @@ func (s *CourseService) List(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "daftar kelas berhasil diambil", courses)
 }
 
+// Mine godoc
+//
+// @ID        courseMine
+// @Summary   KRS milik mahasiswa yang sedang login
+// @Tags      courses
+// @Produce   json
+// @Success   200  {object}  model.WebResponse{data=model.MyCourses}
+// @Failure   401  {object}  model.ErrorResponse
+// @Security  BearerAuth
+// @Router    /courses/mine [get]
 func (s *CourseService) Mine(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -57,13 +76,22 @@ func (s *CourseService) Mine(c *fiber.Ctx) error {
 		total += course.Credits
 	}
 
-	return helper.Success(c, fiber.StatusOK, "KRS berhasil diambil", fiber.Map{
-		"courses":       courses,
-		"total_credits": total,
-		"max_credits":   MaxCreditsPerSemester,
+	return helper.Success(c, fiber.StatusOK, "KRS berhasil diambil", model.MyCourses{
+		Courses: courses, TotalCredits: total, MaxCredits: MaxCreditsPerSemester,
 	})
 }
 
+// Get godoc
+//
+// @Summary   Detail satu kelas
+// @Tags      courses
+// @Produce   json
+// @Param     id   path      int  true  "ID kelas"
+// @Success   200  {object}  model.WebResponse{data=model.Course}
+// @Failure   400  {object}  model.ErrorResponse  "ID bukan angka positif"
+// @Failure   404  {object}  model.ErrorResponse
+// @Security  BearerAuth
+// @Router    /courses/{id} [get]
 func (s *CourseService) Get(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -80,6 +108,21 @@ func (s *CourseService) Get(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "kelas ditemukan", course)
 }
 
+// Enroll godoc
+//
+// @Summary      Mendaftar ke sebuah kelas
+// @Description  Mengambil satu kursi dan mencatat event enrollment.created ke outbox dalam SATU transaction.
+// @Description  Kode error 409: COURSE_FULL, ALREADY_ENROLLED, CREDIT_LIMIT_EXCEEDED.
+// @Tags         courses
+// @Produce      json
+// @Param        id   path      int  true  "ID kelas"
+// @Success      201  {object}  model.WebResponse{data=model.Course}
+// @Header       201  {string}  Location  "URL kelas yang baru didaftari"
+// @Failure      401  {object}  model.ErrorResponse
+// @Failure      404  {object}  model.ErrorResponse
+// @Failure      409  {object}  model.ErrorResponse  "Kuota penuh, sudah terdaftar, atau batas SKS terlampaui"
+// @Security     BearerAuth
+// @Router       /courses/{id}/enroll [post]
 func (s *CourseService) Enroll(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -138,6 +181,16 @@ func (s *CourseService) Enroll(c *fiber.Ctx) error {
 		"/api/v1/courses/"+strconv.Itoa(courseID))
 }
 
+// Drop godoc
+//
+// @Summary   Keluar dari sebuah kelas
+// @Tags      courses
+// @Param     id   path  int  true  "ID kelas"
+// @Success   204  "Berhasil keluar; tanpa body"
+// @Failure   401  {object}  model.ErrorResponse
+// @Failure   409  {object}  model.ErrorResponse  "NOT_ENROLLED"
+// @Security  BearerAuth
+// @Router    /courses/{id}/enroll [delete]
 func (s *CourseService) Drop(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -179,6 +232,20 @@ func (s *CourseService) Drop(c *fiber.Ctx) error {
 	return helper.NoContent(c)
 }
 
+// Swap godoc
+//
+// @Summary      Pindah kelas
+// @Description  Keluar dari kelas lama dan masuk ke kelas baru sebagai satu tindakan. Bila kelas baru penuh, mahasiswa tetap di kelas lama.
+// @Tags         courses
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.SwapRequest  true  "Kelas asal dan kelas tujuan"
+// @Success      200   {object}  model.WebResponse{data=model.Course}
+// @Failure      401   {object}  model.ErrorResponse
+// @Failure      409   {object}  model.ErrorResponse  "COURSE_FULL, NOT_ENROLLED, CREDIT_LIMIT_EXCEEDED"
+// @Failure      422   {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /enrollments/swap [post]
 func (s *CourseService) Swap(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -262,6 +329,20 @@ func (s *CourseService) Swap(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "berhasil pindah kelas", joined)
 }
 
+// UpdateQuota godoc
+//
+// @Summary      Mengubah kuota kelas (admin)
+// @Description  Optimistic locking: kirim version yang terakhir dilihat. Membutuhkan permission course:manage.
+// @Tags         courses
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                       true  "ID kelas"
+// @Param        body  body      model.UpdateQuotaRequest  true  "Kuota baru dan version"
+// @Success      200   {object}  model.WebResponse{data=model.Course}
+// @Failure      403   {object}  model.ErrorResponse
+// @Failure      409   {object}  model.ErrorResponse  "VERSION_CONFLICT atau QUOTA_BELOW_ENROLLED"
+// @Security     BearerAuth
+// @Router       /courses/{id} [patch]
 func (s *CourseService) UpdateQuota(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()

@@ -1,0 +1,17 @@
+.env
+.env.*
+.env.test
+
+.git
+.gotmp/
+logs/
+*.log
+coverage.out
+server.exe
+worker.log
+
+tests/
+tools/
+ignore/
+*.md
+reset*.sql

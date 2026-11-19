@@ -1,0 +1,12 @@
+.env
+.env.test
+logs/
+server.exe
+cmd/logs/
+cmd/worker/logs/
+coverage.out
+.gotmp/
+worker.log
+ignore/
+reset*.sql
+*.log

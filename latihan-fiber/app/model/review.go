@@ -3,15 +3,15 @@ package model
 import "time"
 
 type Review struct {
-	ID           string   `json:"id"`
-	CourseID     int      `json:"course_id"`
-	UserID       int      `json:"user_id"`
-	Username     string   `json:"username"`
-	Rating       int      `json:"rating"`
-	Comment      string   `json:"comment"`
-	Tags         []string `json:"tags"`
-	Replies      []Reply  `json:"replies"`
-	HelpfulCount int      `json:"helpful_count"`
+	ID           string    `json:"id"`
+	CourseID     int       `json:"course_id"`
+	UserID       int       `json:"user_id"`
+	Username     string    `json:"username"`
+	Rating       int       `json:"rating"`
+	Comment      string    `json:"comment"`
+	Tags         []string  `json:"tags"`
+	Replies      []Reply   `json:"replies"`
+	HelpfulCount int       `json:"helpful_count"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -43,19 +43,35 @@ type ReplyRequest struct {
 type ReviewQuery struct {
 	CourseID int
 	Tag      string
-	Before   string 
+	Before   string
 	Limit    int
 }
 
 type ReviewSummary struct {
-	CourseID       int            `json:"course_id"`
-	Count          int            `json:"count"`
-	AverageRating  float64        `json:"average_rating"`
-	Distribution   map[string]int `json:"distribution"`
-	TopTags        []TagCount     `json:"top_tags"`
+	CourseID      int            `json:"course_id"`
+	Count         int            `json:"count"`
+	AverageRating float64        `json:"average_rating"`
+	Distribution  map[string]int `json:"distribution"`
+	TopTags       []TagCount     `json:"top_tags"`
 }
 
 type TagCount struct {
 	Tag   string `json:"tag"`
 	Total int    `json:"total"`
+}
+
+// ReviewPage adalah response GET /courses/{id}/reviews. Bentuk meta-nya
+// berbeda dari WebResponse (cursor, bukan nomor halaman), maka ia memiliki
+// struct sendiri agar dapat didokumentasikan dengan jujur.
+type ReviewPage struct {
+	Success bool           `json:"success"`
+	Message string         `json:"message"`
+	Data    []Review       `json:"data"`
+	Meta    ReviewPageMeta `json:"meta"`
+}
+
+type ReviewPageMeta struct {
+	Limit      int    `json:"limit"`
+	HasMore    bool   `json:"has_more"`
+	NextBefore string `json:"next_before"`
 }
