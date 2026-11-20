@@ -187,6 +187,17 @@ func (s *AuthService) Refresh(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "token berhasil diperbarui", pair)
 }
 
+// Logout godoc
+//
+// @Summary      Mencabut refresh token
+// @Description  Body boleh kosong. Bila refresh_token dikirim, token itu dicabut sehingga tidak dapat dipakai lagi.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.RefreshRequest  false  "Refresh token yang ingin dicabut"
+// @Success      200   {object}  model.SuccessResponse
+// @Failure      400   {object}  model.ErrorResponse
+// @Router       /auth/logout [post]
 func (s *AuthService) Logout(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -203,6 +214,16 @@ func (s *AuthService) Logout(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "logout berhasil", nil)
 }
 
+// Me godoc
+//
+// @Summary      Profil pengguna yang sedang login
+// @Description  Password tidak pernah ikut dikirim; field-nya bertanda json:"-".
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  model.SuccessResponse{data=model.User}
+// @Failure      401  {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /auth/me [get]
 func (s *AuthService) Me(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()

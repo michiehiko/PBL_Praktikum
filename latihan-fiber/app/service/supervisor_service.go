@@ -20,6 +20,23 @@ func NewSupervisorService(repo repository.SupervisorRepository, tx *repository.T
 }
 
 // POST /supervisors/:id/assign
+// Assign godoc
+//
+// @Summary      Menetapkan dosen pembimbing
+// @Description  Butuh permission supervision:manage. Baris mahasiswa dikunci lebih dulu agar dua permintaan serentak tidak melewati kuota.
+// @Tags         supervisors
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                              true  "ID dosen pembimbing"
+// @Param        body  body      model.AssignSupervisorRequest     true  "Mahasiswa yang dibimbing"
+// @Success      201   {object}  model.SuccessResponse
+// @Failure      400   {object}  model.ErrorResponse
+// @Failure      403   {object}  model.ErrorResponse
+// @Failure      404   {object}  model.ErrorResponse
+// @Failure      409   {object}  model.ErrorResponse  "SUPERVISOR_FULL atau ALREADY_ASSIGNED"
+// @Failure      422   {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /supervisors/{id}/assign [post]
 func (s *SupervisorService) Assign(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -61,6 +78,22 @@ func (s *SupervisorService) Assign(c *fiber.Ctx) error {
 }
 
 // POST /supervisions/switch
+// Switch godoc
+//
+// @Summary      Memindahkan mahasiswa ke dosen pembimbing lain
+// @Description  Kedua dosen dikunci berurutan agar bebas deadlock; kuota dosen lama berkurang dan dosen baru bertambah dalam satu transaksi.
+// @Tags         supervisions
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.SwitchSupervisorRequest  true  "Mahasiswa dan dosen tujuan"
+// @Success      200   {object}  model.SuccessResponse
+// @Failure      400   {object}  model.ErrorResponse
+// @Failure      403   {object}  model.ErrorResponse
+// @Failure      404   {object}  model.ErrorResponse
+// @Failure      409   {object}  model.ErrorResponse  "SAME_SUPERVISOR, SUPERVISOR_FULL, atau NOT_ASSIGNED"
+// @Failure      422   {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /supervisions/switch [post]
 func (s *SupervisorService) Switch(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -118,6 +151,23 @@ func (s *SupervisorService) Switch(c *fiber.Ctx) error {
 }
 
 // PATCH /supervisors/:id
+// UpdateQuota godoc
+//
+// @Summary      Mengubah kuota dosen pembimbing
+// @Description  Optimistic locking: kirim version yang terakhir dilihat. Kuota tidak boleh di bawah jumlah bimbingan saat ini.
+// @Tags         supervisors
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                                      true  "ID dosen pembimbing"
+// @Param        body  body      model.UpdateSupervisorQuotaRequest       true  "Kuota baru dan version"
+// @Success      200   {object}  model.SuccessResponse{data=model.Supervisor}
+// @Failure      400   {object}  model.ErrorResponse
+// @Failure      403   {object}  model.ErrorResponse
+// @Failure      404   {object}  model.ErrorResponse
+// @Failure      409   {object}  model.ErrorResponse  "VERSION_CONFLICT atau QUOTA_BELOW_ENROLLED"
+// @Failure      422   {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /supervisors/{id} [patch]
 func (s *SupervisorService) UpdateQuota(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()

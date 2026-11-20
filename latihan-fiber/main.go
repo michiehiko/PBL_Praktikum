@@ -33,6 +33,28 @@ const minSecretLength = 32
 // @description                 API pendaftaran kelas (KRS), ulasan kelas, dan notifikasi.
 // @description                 Seluruh endpoint selain /auth memerlukan access token.
 // @BasePath                    /api/v1
+//
+// @tag.name         auth
+// @tag.description  Registrasi, login, refresh, logout, dan profil sendiri
+// @tag.name         students
+// @tag.description  CRUD mahasiswa beserta portofolionya
+// @tag.name         portfolios
+// @tag.description  Statistik lintas portofolio
+// @tag.name         courses
+// @tag.description  Daftar kelas, detail, pendaftaran, dan keluar kelas
+// @tag.name         reviews
+// @tag.description  Ulasan kelas, balasan, ringkasan, dan penilaian bermanfaat
+// @tag.name         supervisors
+// @tag.description  Kuota dan penugasan dosen pembimbing
+// @tag.name         supervisions
+// @tag.description  Perpindahan mahasiswa antar dosen pembimbing
+// @tag.name         notifications
+// @tag.description  Notifikasi milik pengguna yang sedang login
+// @tag.name         admin
+// @tag.description  Status antrean pekerjaan (butuh permission admin)
+// @tag.name         health
+// @tag.description  Status server dan dependensi
+//
 // @securityDefinitions.apikey  BearerAuth
 // @in                          header
 // @name                        Authorization

@@ -110,6 +110,15 @@ func Register(app *fiber.App, deps Dependencies) {
 	admin.Get("/queue", middleware.RequirePermission(perms, "queue:monitor"), deps.NotificationService.Monitor)
 }
 
+// healthCheck godoc
+//
+// @Summary      Status server dan dependensi
+// @Description  Membalas 200 hanya bila PostgreSQL dan MongoDB dapat dihubungi dalam 2 detik.
+// @Tags         health
+// @Produce      json
+// @Success      200  {object}  model.SuccessResponse
+// @Failure      503  {object}  model.ErrorResponse
+// @Router       /health [get]
 func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)

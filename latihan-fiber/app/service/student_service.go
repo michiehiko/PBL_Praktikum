@@ -33,6 +33,21 @@ func translateError(err error, entity string) error {
 	}
 }
 
+// List godoc
+//
+// @Summary      Daftar mahasiswa dengan cursor pagination
+// @Description  Cursor diambil dari meta.next_cursor. Bila klien mengirim Accept: text/csv, response berupa CSV, bukan JSON.
+// @Tags         students
+// @Produce      json
+// @Param        limit      query     int     false  "Jumlah per halaman, 1 sampai 100"  default(10)
+// @Param        search     query     string  false  "Cari pada NIM atau nama"
+// @Param        is_active  query     bool    false  "Saring status aktif"
+// @Param        cursor     query     string  false  "Cursor dari meta.next_cursor"
+// @Success      200        {object}  model.CursorPage{data=[]model.Student}
+// @Failure      401        {object}  model.ErrorResponse
+// @Failure      403        {object}  model.ErrorResponse  "Butuh permission student:list"
+// @Security     BearerAuth
+// @Router       /students [get]
 func (s *StudentService) List(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -73,6 +88,19 @@ func (s *StudentService) List(c *fiber.Ctx) error {
 	return helper.SuccessCursor(c, "daftar mahasiswa berhasil diambil", rows, meta)
 }
 
+// Get godoc
+//
+// @Summary      Detail satu mahasiswa
+// @Description  Pemilik data atau pemegang permission student:read:any boleh mengakses.
+// @Tags         students
+// @Produce      json
+// @Param        id   path      int  true  "ID mahasiswa"
+// @Success      200  {object}  model.SuccessResponse{data=model.Student}
+// @Failure      400  {object}  model.ErrorResponse
+// @Failure      403  {object}  model.ErrorResponse
+// @Failure      404  {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /students/{id} [get]
 func (s *StudentService) Get(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -99,6 +127,20 @@ func (s *StudentService) Get(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "mahasiswa ditemukan", student)
 }
 
+// Create godoc
+//
+// @Summary      Menambah mahasiswa
+// @Description  Butuh permission student:create. Header Location berisi URL data yang baru dibuat.
+// @Tags         students
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.CreateStudentRequest  true  "Data mahasiswa"
+// @Success      201   {object}  model.SuccessResponse{data=model.Student}
+// @Failure      403   {object}  model.ErrorResponse
+// @Failure      409   {object}  model.ErrorResponse  "NIM sudah dipakai"
+// @Failure      422   {object}  model.ErrorResponse  "Validasi gagal; detail per field ada di fields"
+// @Security     BearerAuth
+// @Router       /students [post]
 func (s *StudentService) Create(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -133,6 +175,23 @@ func (s *StudentService) Create(c *fiber.Ctx) error {
 	return helper.Created(c, "mahasiswa berhasil dibuat", baru, "/api/v1/students/"+strconv.Itoa(baru.ID))
 }
 
+// Replace godoc
+//
+// @Summary      Mengganti seluruh data mahasiswa (PUT)
+// @Description  Semua field wajib diisi; field yang tidak dikirim akan menjadi nilai nol.
+// @Tags         students
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                         true  "ID mahasiswa"
+// @Param        body  body      model.ReplaceStudentRequest  true  "Data mahasiswa lengkap"
+// @Success      200   {object}  model.SuccessResponse{data=model.Student}
+// @Failure      400   {object}  model.ErrorResponse
+// @Failure      403   {object}  model.ErrorResponse
+// @Failure      404   {object}  model.ErrorResponse
+// @Failure      409   {object}  model.ErrorResponse
+// @Failure      422   {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /students/{id} [put]
 func (s *StudentService) Replace(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -182,6 +241,22 @@ func (s *StudentService) Replace(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "data mahasiswa berhasil diganti seluruhnya", hasil)
 }
 
+// Patch godoc
+//
+// @Summary      Mengubah sebagian data mahasiswa (PATCH)
+// @Description  Hanya field yang dikirim yang diubah. Body kosong ditolak dengan 400.
+// @Tags         students
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                       true  "ID mahasiswa"
+// @Param        body  body      model.PatchStudentRequest  true  "Field yang ingin diubah"
+// @Success      200   {object}  model.SuccessResponse{data=model.Student}
+// @Failure      400   {object}  model.ErrorResponse  "Tidak ada field yang diubah"
+// @Failure      403   {object}  model.ErrorResponse
+// @Failure      404   {object}  model.ErrorResponse
+// @Failure      422   {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /students/{id} [patch]
 func (s *StudentService) Patch(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -230,6 +305,19 @@ func (s *StudentService) Patch(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "data mahasiswa diperbarui sebagian", hasil)
 }
 
+// Delete godoc
+//
+// @Summary      Menghapus mahasiswa
+// @Description  Butuh permission student:delete. Portofolio milik mahasiswa ikut terhapus.
+// @Tags         students
+// @Produce      json
+// @Param        id   path  int  true  "ID mahasiswa"
+// @Success      204  "Tidak ada isi"
+// @Failure      400  {object}  model.ErrorResponse
+// @Failure      403  {object}  model.ErrorResponse
+// @Failure      404  {object}  model.ErrorResponse
+// @Security     BearerAuth
+// @Router       /students/{id} [delete]
 func (s *StudentService) Delete(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()

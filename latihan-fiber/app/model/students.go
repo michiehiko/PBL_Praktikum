@@ -63,6 +63,28 @@ type WebResponse struct {
 	Errors  map[string]string `json:"errors,omitempty"`
 }
 
+// SuccessResponse adalah bentuk response helper.Success dan helper.Created.
+//
+// Sebelumnya keduanya menyusun JSON lewat fiber.Map. Isi JSON-nya tidak
+// berubah (success, message, data), tetapi map tidak punya nama sehingga
+// swag tidak dapat menjelaskan bentuknya. Dengan struct ini dokumentasi
+// dapat menulis misalnya model.SuccessResponse{data=model.Student}.
+type SuccessResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
+}
+
+// CursorPage adalah bentuk response helper.SuccessCursor: halaman daftar
+// dengan cursor, bukan nomor halaman. Meta-nya berbeda dari WebResponse,
+// maka ia mendapat tipe sendiri.
+type CursorPage struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    any         `json:"data"`
+	Meta    *CursorMeta `json:"meta"`
+}
+
 type ErrorResponse struct {
 	Success   bool              `json:"success"`
 	Code      string            `json:"code"`
