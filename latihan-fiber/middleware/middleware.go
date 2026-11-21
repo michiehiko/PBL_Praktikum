@@ -78,7 +78,7 @@ var methodsWithBody = map[string]bool{
 
 // menolak request HTTP yang mengirim body tapi bukan JSON
 func RequireJSON(c *fiber.Ctx) error {
-	if methodsWithBody[c.Method()] {
+	if methodsWithBody[c.Method()] && len(c.Body()) > 0 {
 		ct := c.Get("Content-Type")
 		if !strings.HasPrefix(ct, fiber.MIMEApplicationJSON) {
 			return helper.UnsupportedMediaType("Content-Type harus application/json")
